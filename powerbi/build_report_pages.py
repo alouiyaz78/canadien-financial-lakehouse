@@ -764,6 +764,7 @@ def back_button_visual() -> dict:
                 {"properties": {"show": lit("true")}},
                 {
                     "properties": {
+                        "show": lit("true"),  # repeated per state: the Power BI service reads it here
                         "text": text("Overview"),
                         "fontColor": {"solid": {"color": text("#FFFFFF")}},
                         "fontSize": lit("14D"),
