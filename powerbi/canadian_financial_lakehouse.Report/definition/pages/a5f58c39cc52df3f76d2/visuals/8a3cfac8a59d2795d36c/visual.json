@@ -125,8 +125,13 @@
             },
             "text": {
               "expr": {
-                "Literal": {
-                  "Value": "'The peak is the pass-through delay (since 2000).'"
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Pass-through Reading"
                 }
               }
             }
