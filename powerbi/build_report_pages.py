@@ -430,7 +430,7 @@ def overview_page() -> Page:
             ),
             (
                 "Data: Bank of Canada (Valet), Statistics Canada, FRED and the US Census Bureau, ingested daily into a Databricks lakehouse (Bronze → Silver → Gold). "
-                "Values are shown at reference dates. Source code: github.com/alouiyaz78/canadien-financial-lakehouse",
+                "Values are shown at reference dates. Source code: github.com/alouiyaz78/canadian-financial-lakehouse",
                 False,
             ),
         ],
