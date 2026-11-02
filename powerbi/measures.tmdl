@@ -376,6 +376,19 @@ createOrReplace
 			formatString: 0
 			displayFolder: Ops
 
+		/// Series whose most recent download failed. The log is an append-only audit trail, so past errors stay
+		/// in it; a series that failed once and succeeded on the next run is no longer counted here.
+		measure 'Series Failing Now' =
+				COUNTROWS (
+				    FILTER (
+				        VALUES ( bronze_ingestion_log[name] ),
+				        VAR LastAttempt = TOPN ( 1, CALCULATETABLE ( bronze_ingestion_log ), bronze_ingestion_log[ingested_at], DESC )
+				        RETURN CONCATENATEX ( LastAttempt, bronze_ingestion_log[status], "," ) = "error"
+				    )
+				) + 0
+			formatString: 0
+			displayFolder: Ops
+
 		measure 'Latest Tariff on Canada (%)' =
 				VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[us_tariff_rate_on_canada] ), REMOVEFILTERS ( bi_dim_date ) )
 				RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_canada] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )

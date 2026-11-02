@@ -78,6 +78,22 @@
               "nativeQueryRef": "Changed",
               "active": true,
               "displayName": "Changed"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "bronze_ingestion_log"
+                    }
+                  },
+                  "Property": "error"
+                }
+              },
+              "queryRef": "bronze_ingestion_log.error",
+              "nativeQueryRef": "Error message",
+              "active": true,
+              "displayName": "Error message"
             }
           ]
         }

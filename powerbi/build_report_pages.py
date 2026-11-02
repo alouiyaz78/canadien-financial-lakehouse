@@ -608,7 +608,8 @@ def health_page() -> Page:
             measure("Data Freshness Score", "Up to date"),
             measure("Ingestion Runs", "Ingestion runs"),
             measure("Series Changed (runs)", "New payloads stored"),
-            measure("Ingestion Errors", "Ingestion errors"),
+            measure("Series Failing Now", "Failing now"),
+            measure("Ingestion Errors", "Past errors (logged)"),
         ]
     )
     age = column("freshness_report", "age_days", "Age (days)")
@@ -637,6 +638,7 @@ def health_page() -> Page:
             column("bronze_ingestion_log", "name", "Series"),
             column("bronze_ingestion_log", "status", "Status"),
             column("bronze_ingestion_log", "changed", "Changed"),
+            column("bronze_ingestion_log", "error", "Error message"),
         ],
         "Ingestion log (latest first)",
         sort=when,
@@ -732,7 +734,7 @@ HELP: dict[tuple[str, str], str] = {
     (
         "health",
         "kpis",
-    ): "An ingestion run is the daily job that downloads every series. A new copy is stored only when the source published something new.",
+    ): "An ingestion run is the daily job that downloads every series. A new copy is stored only when the source published something new. Failing now = series whose last download failed (should be 0). Past errors = failed attempts kept in the audit log (it is never edited). When Failing now is 0, every one of them was fixed by a later run.",
     (
         "health",
         "freshness",

@@ -98,12 +98,27 @@
                       "Entity": "_Measures"
                     }
                   },
+                  "Property": "Series Failing Now"
+                }
+              },
+              "queryRef": "_Measures.Series Failing Now",
+              "nativeQueryRef": "Failing now",
+              "displayName": "Failing now"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
                   "Property": "Ingestion Errors"
                 }
               },
               "queryRef": "_Measures.Ingestion Errors",
-              "nativeQueryRef": "Ingestion errors",
-              "displayName": "Ingestion errors"
+              "nativeQueryRef": "Past errors (logged)",
+              "displayName": "Past errors (logged)"
             }
           ]
         }
@@ -244,7 +259,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'An ingestion run is the daily job that downloads every series. A new copy is stored only when the source published something new.'"
+                  "Value": "'An ingestion run is the daily job that downloads every series. A new copy is stored only when the source published something new. Failing now = series whose last download failed (should be 0). Past errors = failed attempts kept in the audit log (it is never edited). When Failing now is 0, every one of them was fixed by a later run.'"
                 }
               }
             }
