@@ -81,7 +81,9 @@ def title_objects(title: str | None, subtitle: str | None = None) -> dict:
     if title is None:
         return {"title": [{"properties": {"show": lit("false")}}]}
     out = {"title": [{"properties": {"show": lit("true"), "text": text(title)}}]}
-    if subtitle:
+    if isinstance(subtitle, dict):  # dynamic subtitle: a text measure (Format → Subtitle → fx → Field value)
+        out["subTitle"] = [{"properties": {"show": lit("true"), "text": {"expr": subtitle["field"]}}}]
+    elif subtitle:
         out["subTitle"] = [{"properties": {"show": lit("true"), "text": text(subtitle)}}]
     else:  # otherwise Power BI shows an automatic "X et Y par month_start" subtitle
         out["subTitle"] = [{"properties": {"show": lit("false")}}]
@@ -520,7 +522,7 @@ def oil_page() -> Page:
         column("bi_mart_energy_passthrough", "lag_months", "Lag (months)"),
         [total("bi_mart_energy_passthrough", "corr_core", "Correlation with core")],
         "Energy → core inflation: correlation by lag",
-        "The peak is the pass-through delay (since 2000).",
+        measure("Pass-through Reading"),
     )
     p.columns(
         "fx_effect",

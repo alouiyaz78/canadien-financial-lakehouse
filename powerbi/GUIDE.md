@@ -74,6 +74,12 @@ Puis :
 
 ## 3. Les pages
 
+> **Mise à jour :** les pages du rapport publié sont générées par
+> [`build_report_pages.py`](build_report_pages.py) (`uv run python powerbi/build_report_pages.py`), et
+> [`measures.dax`](measures.dax) ne garde que les mesures utilisées par un visuel. Les plans ci-dessous sont
+> le cahier des charges d'origine : certaines mesures citées (`[Curve Inverted]`, `[USD/CAD]`, `[Target]`…) ont
+> été retirées parce qu'aucune page ne les affiche.
+
 Format 16:9, fond « neige » du thème Canadian Winter, un titre qui **affirme** la conclusion (pas « Inflation » mais
 « L'inflation fondamentale est sous la cible malgré le choc pétrolier »).
 

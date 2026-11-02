@@ -50,15 +50,6 @@ DATEDIFF ( TODAY (), [Next Decision Date], DAY )
 
 Policy Rate = AVERAGE ( bi_mart_macro_monthly[policy_rate] )
 
-Real Policy Rate = AVERAGE ( bi_mart_macro_monthly[real_policy_rate] )
-
-Market-Implied Move 6M (bp) = AVERAGE ( bi_mart_macro_monthly[market_implied_6m_bp] )
-
-Market Pricing Label =
-VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[market_implied_6m_bp] ) )
-VAR Bp = CALCULATE ( [Market-Implied Move 6M (bp)], bi_mart_macro_monthly[month] = M )
-RETURN
-    SWITCH ( TRUE (), Bp >= 15, "Markets price hikes", Bp <= -15, "Markets price cuts", "Markets price a hold" )
 
 // Taylor rule with the what-if parameters (the Gold column taylor_rule_rate uses the defaults)
 Taylor Rule Rate =
@@ -96,8 +87,6 @@ VAR S = [Net Policy Stance]
 RETURN
     SWITCH ( TRUE (), S >= 2, "Hawkish bias", S <= -2, "Dovish bias", "Balanced" )
 
-Hawkish Signals = CALCULATE ( COUNTROWS ( bi_mart_policy_signals ), bi_mart_policy_signals[signal] = 1 )
-Dovish Signals = CALCULATE ( COUNTROWS ( bi_mart_policy_signals ), bi_mart_policy_signals[signal] = -1 )
 
 // Conditional formatting for the scorecard table (Format → Cell elements → Background → Field value)
 Signal Color =
@@ -110,22 +99,10 @@ SWITCH ( MAX ( bi_mart_policy_signals[signal] ), 1, "#C8102E", -1, "#2F5D50", "#
 Headline CPI (y/y) = AVERAGE ( bi_mart_macro_monthly[cpi_headline_yoy] )
 CPI-trim = AVERAGE ( bi_mart_macro_monthly[cpi_trim] )
 CPI-median = AVERAGE ( bi_mart_macro_monthly[cpi_median] )
-CPI-common = AVERAGE ( bi_mart_macro_monthly[cpi_common] )
 Core Inflation (avg) = AVERAGE ( bi_mart_macro_monthly[core_avg] )
-Core Measures Spread = AVERAGE ( bi_mart_macro_monthly[core_range] )
-Target = 2
 Target Band Low = 1
 Target Band High = 3
 
-Core vs Target (pts) = [Core Inflation (avg)] - [Target]
-
-Months Outside Target Band =
-COUNTROWS (
-    FILTER (
-        bi_mart_macro_monthly,
-        bi_mart_macro_monthly[cpi_headline_yoy] > 3 || bi_mart_macro_monthly[cpi_headline_yoy] < 1
-    )
-)
 
 // Latest-month KPIs (ignore the date slicer)
 Latest Core Inflation =
@@ -135,8 +112,6 @@ RETURN CALCULATE ( [Core Inflation (avg)], bi_mart_macro_monthly[month] = M, REM
 Latest Headline CPI =
 VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[cpi_headline_yoy] ), REMOVEFILTERS ( bi_dim_date ) )
 RETURN CALCULATE ( [Headline CPI (y/y)], bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
-
-Inflation Expectations 2-3Y = AVERAGE ( bi_mart_macro_monthly[infl_exp_consensus_2_3y] )
 
 
 // ---------------------------------------------------------------- 2 · Oil shock
@@ -150,8 +125,6 @@ WTI USD (y/y %) = AVERAGE ( bi_mart_macro_monthly[wti_usd_yoy] )
 // How much of the oil move the exchange rate amplified (+) or cushioned (−) for Canadians
 FX Effect on Oil (pts) = [WTI CAD (y/y %)] - [WTI USD (y/y %)]
 
-Energy Commodity Prices (y/y %) = AVERAGE ( bi_mart_macro_monthly[bcpi_energy_yoy] )
-Headline minus Core (pts) = AVERAGE ( bi_mart_macro_monthly[headline_minus_core] )
 
 Peak Lag to Core (months) =
 MAXX (
@@ -167,7 +140,7 @@ MAXX (
 
 Pass-through Reading =
 "Energy prices lead core inflation by about " & [Peak Lag to Core (months)]
-    & " months (correlation " & FORMAT ( [Peak Correlation to Core], "0.00" ) & ")"
+    & " months (correlation " & FORMAT ( [Peak Correlation to Core], "0.00" ) & ", since 2000)."
 
 
 // ---------------------------------------------------------------- 3 · Tariffs
@@ -176,19 +149,9 @@ Pass-through Reading =
 US Tariff on Canada (%) = AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_canada] )
 US Tariff on Mexico (%) = AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_mexico] )
 US Tariff on China (%) = AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_china] )
-Canada Advantage vs China (pts) = AVERAGE ( bi_mart_macro_monthly[canada_tariff_advantage_vs_china] )
 US Import Prices from Canada (y/y %) = AVERAGE ( bi_mart_macro_monthly[us_import_prices_from_canada_yoy] )
 Trade Policy Uncertainty = AVERAGE ( bi_mart_macro_monthly[trade_policy_uncertainty] )
-USD/CAD = AVERAGE ( bi_mart_macro_monthly[usdcad] )
 
-Tariff Change vs Pre-2025 (pts) =
-VAR Baseline =
-    CALCULATE (
-        AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_canada] ),
-        DATESBETWEEN ( bi_dim_date[date], DATE ( 2024, 1, 1 ), DATE ( 2024, 12, 31 ) ),
-        REMOVEFILTERS ( bi_dim_date )
-    )
-RETURN [US Tariff on Canada (%)] - Baseline
 
 // Negative = Canadian exporters cut their prices, i.e. absorb part of the tariff
 Exporter Absorption Reading =
@@ -206,8 +169,6 @@ RETURN
 
 Mortgage 5Y Today (%) = AVERAGE ( bi_mart_macro_monthly[mortgage_5y] )
 Mortgage 5Y at Origination (%) = AVERAGE ( bi_mart_macro_monthly[mortgage_5y_at_origination] )
-Renewal Rate Change (pts) = AVERAGE ( bi_mart_macro_monthly[renewal_rate_change] )
-Bank Mortgage Spread (pts) = AVERAGE ( bi_mart_macro_monthly[mortgage_spread_5y] )
 
 Payment at Origination =
 VAR R = [Latest Rate at Origination (%)] / 100
@@ -244,12 +205,6 @@ Yield 1 Year Earlier =
 VAR D = MAX ( bi_dim_date[date] ) - 365
 VAR LastD = CALCULATE ( MAX ( bi_fact_yield_curve[date] ), bi_fact_yield_curve[date] <= D, REMOVEFILTERS ( bi_dim_date ) )
 RETURN CALCULATE ( AVERAGE ( bi_fact_yield_curve[yield_pct] ), bi_fact_yield_curve[date] = LastD, REMOVEFILTERS ( bi_dim_date ) )
-
-10Y-2Y Spread = AVERAGE ( bi_mart_macro_monthly[term_spread_10y_2y] )
-
-Curve Inverted =
-VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[term_spread_10y_2y] ) )
-RETURN IF ( CALCULATE ( [10Y-2Y Spread], bi_mart_macro_monthly[month] = M ) < 0, "Inverted", "Normal" )
 
 
 // ---------------------------------------------------------------- 5 · Pipeline health (bonus)

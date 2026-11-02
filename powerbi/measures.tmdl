@@ -43,21 +43,6 @@ createOrReplace
 			formatString: 0.00
 			displayFolder: Policy
 
-		measure 'Real Policy Rate' = AVERAGE ( bi_mart_macro_monthly[real_policy_rate] )
-			formatString: 0.00
-			displayFolder: Policy
-
-		measure 'Market-Implied Move 6M (bp)' = AVERAGE ( bi_mart_macro_monthly[market_implied_6m_bp] )
-			formatString: 0
-			displayFolder: Policy
-
-		measure 'Market Pricing Label' =
-				VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[market_implied_6m_bp] ) )
-				VAR Bp = CALCULATE ( [Market-Implied Move 6M (bp)], bi_mart_macro_monthly[month] = M )
-				RETURN
-				    SWITCH ( TRUE (), Bp >= 15, "Markets price hikes", Bp <= -15, "Markets price cuts", "Markets price a hold" )
-			displayFolder: Policy
-
 		/// Taylor rule with the what-if parameters (the Gold column taylor_rule_rate uses the defaults)
 		measure 'Taylor Rule Rate' =
 				// Months without core inflation or unemployment (current, unpublished month) stay blank instead of dropping to r*
@@ -102,14 +87,6 @@ createOrReplace
 				    SWITCH ( TRUE (), S >= 2, "Hawkish bias", S <= -2, "Dovish bias", "Balanced" )
 			displayFolder: Policy
 
-		measure 'Hawkish Signals' = CALCULATE ( COUNTROWS ( bi_mart_policy_signals ), bi_mart_policy_signals[signal] = 1 )
-			formatString: 0
-			displayFolder: Policy
-
-		measure 'Dovish Signals' = CALCULATE ( COUNTROWS ( bi_mart_policy_signals ), bi_mart_policy_signals[signal] = -1 )
-			formatString: 0
-			displayFolder: Policy
-
 		/// Conditional formatting for the scorecard table (Format → Cell elements → Background → Field value)
 		measure 'Signal Color' = SWITCH ( MAX ( bi_mart_policy_signals[signal] ), 1, "#C8102E", -1, "#2F5D50", "#8E9AAF" )
 			displayFolder: Policy
@@ -126,19 +103,7 @@ createOrReplace
 			formatString: 0.00
 			displayFolder: Inflation
 
-		measure 'CPI-common' = AVERAGE ( bi_mart_macro_monthly[cpi_common] )
-			formatString: 0.00
-			displayFolder: Inflation
-
 		measure 'Core Inflation (avg)' = AVERAGE ( bi_mart_macro_monthly[core_avg] )
-			formatString: 0.00
-			displayFolder: Inflation
-
-		measure 'Core Measures Spread' = AVERAGE ( bi_mart_macro_monthly[core_range] )
-			formatString: 0.00
-			displayFolder: Inflation
-
-		measure 'Target' = 2
 			formatString: 0.00
 			displayFolder: Inflation
 
@@ -148,20 +113,6 @@ createOrReplace
 
 		measure 'Target Band High' = 3
 			formatString: 0.00
-			displayFolder: Inflation
-
-		measure 'Core vs Target (pts)' = [Core Inflation (avg)] - [Target]
-			formatString: 0.00
-			displayFolder: Inflation
-
-		measure 'Months Outside Target Band' =
-				COUNTROWS (
-				    FILTER (
-				        bi_mart_macro_monthly,
-				        bi_mart_macro_monthly[cpi_headline_yoy] > 3 || bi_mart_macro_monthly[cpi_headline_yoy] < 1
-				    )
-				)
-			formatString: 0
 			displayFolder: Inflation
 
 		/// Latest-month KPIs (ignore the date slicer)
@@ -174,10 +125,6 @@ createOrReplace
 		measure 'Latest Headline CPI' =
 				VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[cpi_headline_yoy] ), REMOVEFILTERS ( bi_dim_date ) )
 				RETURN CALCULATE ( [Headline CPI (y/y)], bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
-			formatString: 0.00
-			displayFolder: Inflation
-
-		measure 'Inflation Expectations 2-3Y' = AVERAGE ( bi_mart_macro_monthly[infl_exp_consensus_2_3y] )
 			formatString: 0.00
 			displayFolder: Inflation
 
@@ -202,14 +149,6 @@ createOrReplace
 			formatString: 0.00
 			displayFolder: Energy
 
-		measure 'Energy Commodity Prices (y/y %)' = AVERAGE ( bi_mart_macro_monthly[bcpi_energy_yoy] )
-			formatString: 0.00
-			displayFolder: Energy
-
-		measure 'Headline minus Core (pts)' = AVERAGE ( bi_mart_macro_monthly[headline_minus_core] )
-			formatString: 0.00
-			displayFolder: Energy
-
 		measure 'Peak Lag to Core (months)' =
 				MAXX (
 				    TOPN ( 1, bi_mart_energy_passthrough, bi_mart_energy_passthrough[corr_core], DESC ),
@@ -228,7 +167,7 @@ createOrReplace
 
 		measure 'Pass-through Reading' =
 				"Energy prices lead core inflation by about " & [Peak Lag to Core (months)]
-				    & " months (correlation " & FORMAT ( [Peak Correlation to Core], "0.00" ) & ")"
+				    & " months (correlation " & FORMAT ( [Peak Correlation to Core], "0.00" ) & ", since 2000)."
 			displayFolder: Energy
 
 		measure 'US Tariff on Canada (%)' = AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_canada] )
@@ -243,30 +182,11 @@ createOrReplace
 			formatString: 0.00
 			displayFolder: Trade
 
-		measure 'Canada Advantage vs China (pts)' = AVERAGE ( bi_mart_macro_monthly[canada_tariff_advantage_vs_china] )
-			formatString: 0.00
-			displayFolder: Trade
-
 		measure 'US Import Prices from Canada (y/y %)' = AVERAGE ( bi_mart_macro_monthly[us_import_prices_from_canada_yoy] )
 			formatString: 0.00
 			displayFolder: Trade
 
 		measure 'Trade Policy Uncertainty' = AVERAGE ( bi_mart_macro_monthly[trade_policy_uncertainty] )
-			displayFolder: Trade
-
-		measure 'USD/CAD' = AVERAGE ( bi_mart_macro_monthly[usdcad] )
-			formatString: 0.00
-			displayFolder: Trade
-
-		measure 'Tariff Change vs Pre-2025 (pts)' =
-				VAR Baseline =
-				    CALCULATE (
-				        AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_canada] ),
-				        DATESBETWEEN ( bi_dim_date[date], DATE ( 2024, 1, 1 ), DATE ( 2024, 12, 31 ) ),
-				        REMOVEFILTERS ( bi_dim_date )
-				    )
-				RETURN [US Tariff on Canada (%)] - Baseline
-			formatString: 0.00
 			displayFolder: Trade
 
 		/// Negative = Canadian exporters cut their prices, i.e. absorb part of the tariff
@@ -282,14 +202,6 @@ createOrReplace
 			displayFolder: Mortgage
 
 		measure 'Mortgage 5Y at Origination (%)' = AVERAGE ( bi_mart_macro_monthly[mortgage_5y_at_origination] )
-			formatString: 0.00
-			displayFolder: Mortgage
-
-		measure 'Renewal Rate Change (pts)' = AVERAGE ( bi_mart_macro_monthly[renewal_rate_change] )
-			formatString: 0.00
-			displayFolder: Mortgage
-
-		measure 'Bank Mortgage Spread (pts)' = AVERAGE ( bi_mart_macro_monthly[mortgage_spread_5y] )
 			formatString: 0.00
 			displayFolder: Mortgage
 
@@ -341,15 +253,6 @@ createOrReplace
 				VAR LastD = CALCULATE ( MAX ( bi_fact_yield_curve[date] ), bi_fact_yield_curve[date] <= D, REMOVEFILTERS ( bi_dim_date ) )
 				RETURN CALCULATE ( AVERAGE ( bi_fact_yield_curve[yield_pct] ), bi_fact_yield_curve[date] = LastD, REMOVEFILTERS ( bi_dim_date ) )
 			formatString: 0.00
-			displayFolder: Curve
-
-		measure '10Y-2Y Spread' = AVERAGE ( bi_mart_macro_monthly[term_spread_10y_2y] )
-			formatString: 0.00
-			displayFolder: Curve
-
-		measure 'Curve Inverted' =
-				VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[term_spread_10y_2y] ) )
-				RETURN IF ( CALCULATE ( [10Y-2Y Spread], bi_mart_macro_monthly[month] = M ) < 0, "Inverted", "Normal" )
 			displayFolder: Curve
 
 		measure 'Series Monitored' = COUNTROWS ( freshness_report )
