@@ -24,7 +24,7 @@ banque ou d'un fonds se pose réellement, plus une page de santé du pipeline.
 1. Databricks → **SQL Warehouses** → ton entrepôt (Serverless Starter Warehouse) → **Connection details** :
    note `Server hostname` et `HTTP path`.
 2. Databricks → avatar → **Settings → Developer → Access tokens → Generate new token** (90 jours).
-3. Power BI Desktop → **Get data → Azure Databricks** (fonctionne aussi pour un espace AWS) →
+3. Power BI Desktop → **Obtenir les données → Databricks** (pas « Azure Databricks ») →
    colle hostname et HTTP path → mode **Import** → authentification *Personal Access Token*.
 4. Coche dans `workspace.cfl` :
    `bi_dim_date`, `bi_dim_series`, `bi_fact_observations`, `bi_fact_yield_curve`,
@@ -74,7 +74,7 @@ Puis :
 
 ## 3. Les pages
 
-Format 16:9, fond beige du thème, un titre qui **affirme** la conclusion (pas « Inflation » mais
+Format 16:9, fond « neige » du thème Canadian Winter, un titre qui **affirme** la conclusion (pas « Inflation » mais
 « L'inflation fondamentale est sous la cible malgré le choc pétrolier »).
 
 ### Page 1 — Moniteur de décision
@@ -167,3 +167,8 @@ segment de date unique ; carte `[Curve Inverted]`.
 2. Captures de chaque page dans `docs/img/powerbi_*.png` + un GIF de 20 s du simulateur hypothécaire
    et des curseurs de Taylor pour le README.
 3. Ajoute un texte alternatif à chaque visuel (accessibilité, très apprécié dans le secteur public).
+
+> **Paramètres what-if dans un Power BI en français** : la mesure générée s'appelle `Valeur X` et sa
+> valeur par défaut peut être du texte (`SELECTEDVALUE(..., "0.5")`), ce qui fait échouer les calculs
+> (« Failed to move the data reader to the next row »). Renommer en `X Value` et mettre une valeur
+> numérique : `SELECTEDVALUE ( 'Slack weight'[Slack weight], 0.5 )`.

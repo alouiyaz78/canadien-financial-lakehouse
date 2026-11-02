@@ -62,8 +62,12 @@ RETURN
 
 // Taylor rule with the what-if parameters (the Gold column taylor_rule_rate uses the defaults)
 Taylor Rule Rate =
+// Months without core inflation or unemployment (current, unpublished month) stay blank instead of dropping to r*
 AVERAGEX (
-    bi_mart_macro_monthly,
+    FILTER (
+        bi_mart_macro_monthly,
+        NOT ISBLANK ( bi_mart_macro_monthly[core_avg] ) && NOT ISBLANK ( bi_mart_macro_monthly[unemployment_gap] )
+    ),
     [Neutral real rate Value]
         + bi_mart_macro_monthly[core_avg]
         + [Inflation weight Value] * ( bi_mart_macro_monthly[core_avg] - 2 )
@@ -80,9 +84,9 @@ RETURN
     SWITCH (
         TRUE (),
         ISBLANK ( Gap ), BLANK (),
-        Gap < -0.5, "Policy looser than the rule → argues for hikes",
-        Gap > 0.5, "Policy tighter than the rule → argues for cuts",
-        "Policy close to the rule"
+        Gap < -0.5, "Below the rule: room to hike",
+        Gap > 0.5, "Above the rule: room to cut",
+        "In line with the rule"
     )
 
 Net Policy Stance = SUM ( bi_mart_policy_signals[signal] )
@@ -97,7 +101,7 @@ Dovish Signals = CALCULATE ( COUNTROWS ( bi_mart_policy_signals ), bi_mart_polic
 
 // Conditional formatting for the scorecard table (Format → Cell elements → Background → Field value)
 Signal Color =
-SWITCH ( MAX ( bi_mart_policy_signals[signal] ), 1, "#C0392B", -1, "#1F7A4D", "#9AA5B1" )
+SWITCH ( MAX ( bi_mart_policy_signals[signal] ), 1, "#C8102E", -1, "#2F5D50", "#8E9AAF" )
 
 
 // ---------------------------------------------------------------- Inflation
@@ -178,13 +182,13 @@ Trade Policy Uncertainty = AVERAGE ( bi_mart_macro_monthly[trade_policy_uncertai
 USD/CAD = AVERAGE ( bi_mart_macro_monthly[usdcad] )
 
 Tariff Change vs Pre-2025 (pts) =
-VAR Before =
+VAR Baseline =
     CALCULATE (
         AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_canada] ),
         DATESBETWEEN ( bi_dim_date[date], DATE ( 2024, 1, 1 ), DATE ( 2024, 12, 31 ) ),
         REMOVEFILTERS ( bi_dim_date )
     )
-RETURN [US Tariff on Canada (%)] - Before
+RETURN [US Tariff on Canada (%)] - Baseline
 
 // Negative = Canadian exporters cut their prices, i.e. absorb part of the tariff
 Exporter Absorption Reading =
@@ -206,19 +210,19 @@ Renewal Rate Change (pts) = AVERAGE ( bi_mart_macro_monthly[renewal_rate_change]
 Bank Mortgage Spread (pts) = AVERAGE ( bi_mart_macro_monthly[mortgage_spread_5y] )
 
 Payment at Origination =
-VAR R = [Mortgage 5Y at Origination (%)] / 100
+VAR R = [Latest Rate at Origination (%)] / 100
 VAR J = ( 1 + R / 2 ) ^ ( 1 / 6 ) - 1
 VAR N = [Amortization years Value] * 12
 RETURN [Mortgage amount Value] * J / ( 1 - ( 1 + J ) ^ ( -N ) )
 
 Balance at Renewal =
-VAR R = [Mortgage 5Y at Origination (%)] / 100
+VAR R = [Latest Rate at Origination (%)] / 100
 VAR J = ( 1 + R / 2 ) ^ ( 1 / 6 ) - 1
 VAR P = [Payment at Origination]
 RETURN [Mortgage amount Value] * ( 1 + J ) ^ 60 - P * ( ( 1 + J ) ^ 60 - 1 ) / J
 
 Payment at Renewal =
-VAR R = [Mortgage 5Y Today (%)] / 100
+VAR R = [Latest Mortgage 5Y (%)] / 100
 VAR J = ( 1 + R / 2 ) ^ ( 1 / 6 ) - 1
 VAR N = [Amortization years Value] * 12 - 60
 RETURN [Balance at Renewal] * J / ( 1 - ( 1 + J ) ^ ( -N ) )
@@ -252,8 +256,112 @@ RETURN IF ( CALCULATE ( [10Y-2Y Spread], bi_mart_macro_monthly[month] = M ) < 0,
 // Folder: Ops  (tables: freshness_report, bronze_ingestion_log)
 
 Series Monitored = COUNTROWS ( freshness_report )
-Series Late or Missing = CALCULATE ( COUNTROWS ( freshness_report ), freshness_report[status] IN { "late", "missing" } )
+Series Late or Missing = CALCULATE ( COUNTROWS ( freshness_report ), freshness_report[status] IN { "late", "missing" } ) + 0
 Data Freshness Score = DIVIDE ( CALCULATE ( COUNTROWS ( freshness_report ), freshness_report[status] IN { "ok", "retired" } ), [Series Monitored] )
 Ingestion Runs = DISTINCTCOUNT ( bronze_ingestion_log[run_id] )
 Series Changed (runs) = CALCULATE ( COUNTROWS ( bronze_ingestion_log ), bronze_ingestion_log[changed] = TRUE () )
-Ingestion Errors = CALCULATE ( COUNTROWS ( bronze_ingestion_log ), bronze_ingestion_log[status] = "error" )
+Ingestion Errors = CALCULATE ( COUNTROWS ( bronze_ingestion_log ), bronze_ingestion_log[status] = "error" ) + 0
+
+// Series whose most recent download failed. The log is an append-only audit trail, so past errors stay
+// in it; a series that failed once and succeeded on the next run is no longer counted here.
+Series Failing Now =
+COUNTROWS (
+    FILTER (
+        VALUES ( bronze_ingestion_log[name] ),
+        VAR LastAttempt = TOPN ( 1, CALCULATETABLE ( bronze_ingestion_log ), bronze_ingestion_log[ingested_at], DESC )
+        RETURN CONCATENATEX ( LastAttempt, bronze_ingestion_log[status], "," ) = "error"
+    )
+) + 0
+
+
+// ---------------------------------------------------------------- Latest values (cards)
+// Every card shows the latest published month of its column, whatever the date filter.
+// Folder: Trade
+
+Latest Tariff on Canada (%) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[us_tariff_rate_on_canada] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_canada] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+Latest Tariff on Mexico (%) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[us_tariff_rate_on_mexico] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_mexico] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+Latest Tariff on China (%) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[us_tariff_rate_on_china] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[us_tariff_rate_on_china] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+Latest Canada Advantage vs China (pts) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[canada_tariff_advantage_vs_china] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[canada_tariff_advantage_vs_china] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+Latest Trade Policy Uncertainty =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[trade_policy_uncertainty] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[trade_policy_uncertainty] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+Latest US Import Prices from Canada (y/y %) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[us_import_prices_from_canada_yoy] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[us_import_prices_from_canada_yoy] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+// Folder: Energy
+
+Latest WTI (USD) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[wti_usd] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[wti_usd] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+Latest WTI (CAD) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[wti_cad] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[wti_cad] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+Latest Headline minus Core (pts) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[headline_minus_core] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[headline_minus_core] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+// Folder: Mortgage
+
+Latest Mortgage 5Y (%) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[mortgage_5y] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[mortgage_5y] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+Latest Rate at Origination (%) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[mortgage_5y_at_origination] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[mortgage_5y_at_origination] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+Latest Renewal Rate Change (pts) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[renewal_rate_change] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[renewal_rate_change] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+// Folder: Policy
+
+Latest Market-Implied Move 6M (bp) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[market_implied_6m_bp] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[market_implied_6m_bp] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+// Folder: Inflation
+
+Latest Inflation Expectations 2-3Y =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[infl_exp_consensus_2_3y] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[infl_exp_consensus_2_3y] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+Latest Firms Expecting > 3% Inflation (%) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[bos_firms_infl_above_3] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( AVERAGE ( bi_mart_macro_monthly[bos_firms_infl_above_3] ), bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+// Folder: Energy
+
+// Exchange-rate effect over the last 12 months: + = the weaker loonie amplified the oil move for Canadians
+Latest FX Effect on Oil (pts) =
+VAR M = CALCULATE ( MAX ( bi_mart_macro_monthly[month] ), NOT ISBLANK ( bi_mart_macro_monthly[wti_cad_yoy] ), REMOVEFILTERS ( bi_dim_date ) )
+RETURN CALCULATE ( [FX Effect on Oil (pts)], bi_mart_macro_monthly[month] = M, REMOVEFILTERS ( bi_dim_date ) )
+
+// Folder: Trade
+// The raw index (100 = normal) is hard to read: show it as a multiple of the normal level
+Trade Uncertainty vs Normal =
+VAR U = [Latest Trade Policy Uncertainty]
+RETURN IF ( NOT ISBLANK ( U ), FORMAT ( U / 100, "0" ) & "× normal" )
+
+// Folder: Mortgage
+// Text versions for the cards: Power BI's new card would otherwise shorten 2,850 to "3K"
+Payment Before (text) = FORMAT ( [Payment at Origination], "$#,0" )
+Payment After (text) = FORMAT ( [Payment at Renewal], "$#,0" )
+Extra per Month (text) = FORMAT ( [Monthly Payment Shock ($)], "+$#,0;-$#,0" )
+Extra per Year (text) = FORMAT ( [Annual Payment Shock ($)], "+$#,0;-$#,0" )
