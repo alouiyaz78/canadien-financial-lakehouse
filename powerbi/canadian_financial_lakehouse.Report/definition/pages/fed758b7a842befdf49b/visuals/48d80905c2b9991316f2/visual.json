@@ -43,7 +43,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "Data: Bank of Canada (Valet), Statistics Canada, FRED and the US Census Bureau, ingested daily into a Databricks lakehouse (Bronze → Silver → Gold). Values are shown at reference dates. Source code: github.com/alouiyaz78/canadian-financial-lakehouse",
+                    "value": "Data: Bank of Canada (Valet), Statistics Canada, FRED and the US Census Bureau, ingested daily into a Databricks lakehouse (Bronze → Silver → Gold). Values are shown at reference dates. Source code: github.com/alouiyaz78/Canadien-financial-lakehouse",
                     "textStyle": {
                       "fontWeight": "normal",
                       "fontSize": "11pt",

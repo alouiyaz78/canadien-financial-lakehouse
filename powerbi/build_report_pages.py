@@ -430,7 +430,7 @@ def overview_page() -> Page:
             ),
             (
                 "Data: Bank of Canada (Valet), Statistics Canada, FRED and the US Census Bureau, ingested daily into a Databricks lakehouse (Bronze → Silver → Gold). "
-                "Values are shown at reference dates. Source code: github.com/alouiyaz78/canadian-financial-lakehouse",
+                "Values are shown at reference dates. Source code: github.com/alouiyaz78/Canadien-financial-lakehouse",
                 False,
             ),
         ],
@@ -468,7 +468,7 @@ def signals_page() -> Page:
     signal_label = column("bi_mart_policy_signals", "signal_label", "Signal")
     p.table(
         "signals",
-        RIGHT,
+        (1165, 320, 727, 370),
         [
             column("bi_mart_policy_signals", "indicator", "Indicator"),
             column("bi_mart_policy_signals", "latest_value", "Latest"),
@@ -478,6 +478,17 @@ def signals_page() -> Page:
         "Hawkish / dovish scorecard",
         sort=column("bi_mart_policy_signals", "indicator"),
         cell_color=(signal_label["queryRef"], "Signal Color"),
+    )
+    p.line(
+        "curve",
+        (1165, 705, 727, 355),
+        [
+            measure("Yield on Selected Date", "Today"),
+            measure("Yield 1 Year Earlier", "One year earlier"),
+        ],
+        "Yield curve: today vs one year earlier (%)",
+        "Government of Canada yields by maturity, overnight to 30 years.",
+        category=column("bi_fact_yield_curve", "tenor", "Maturity"),
     )
     return p
 
@@ -731,6 +742,10 @@ HELP: dict[tuple[str, str], str] = {
         "mortgage",
         "shock_month",
     ): "Extra monthly payment for a household renewing today, for the amount and amortization chosen.",
+    (
+        "signals",
+        "curve",
+    ): "What does the yield curve show? The interest rate the Government of Canada pays to borrow for each maturity. Short rates follow what markets expect from the Bank; the 5-year rate drives fixed mortgage rates. If the 'today' line sits above last year's, borrowing got more expensive; if short rates rose more than long ones, the curve flattened, a typical sign of tightening.",
     (
         "health",
         "kpis",
